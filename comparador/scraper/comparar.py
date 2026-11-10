@@ -16,9 +16,9 @@ from datetime import datetime, timezone
 from pathlib import Path
 from urllib.parse import urlparse
 
-from coincidencia import coincidencia_fuerte, combinar, extraer_specs, puntaje_descripcion, puntaje_foto, puntaje_specs
+from coincidencia import coincidencia_fuerte, combinar, diferencias_variante, misma_referencia, extraer_specs, puntaje_descripcion, puntaje_foto, puntaje_specs
 from tiendas import didacticas, suconel
-from tiendas.base import Bloqueado, Cliente, Producto
+from tiendas.base import Bloqueado, Cliente, LimiteDiario, Producto
 
 RAIZ = Path(__file__).resolve().parents[1]
 CATALOGO = RAIZ / "productos.json"
@@ -48,7 +48,15 @@ def evaluar(ref: Producto, cand: Producto, img_ref, img_cand, iva: float) -> dic
     ps, motivos, conflicto = puntaje_specs(ref.specs, cand.specs)
     pd = puntaje_descripcion(ref.nombre, ref.descripcion, cand.nombre, cand.descripcion)
     pf = puntaje_foto(img_ref, img_cand)
-    total, veredicto = combinar(ps, pd, pf, conflicto, coincidencia_fuerte(ref.specs, cand.specs, ps))
+    fuerte = coincidencia_fuerte(ref.specs, cand.specs, ps, ref.sku, cand.sku, ref.nombre, cand.nombre)
+    total, veredicto = combinar(ps, pd, pf, conflicto, fuerte)
+    variantes = diferencias_variante(ref.nombre, cand.nombre)
+    if variantes:
+        motivos = motivos + ["variante distinta: " + ", ".join(variantes)]
+        if veredicto == "mismo":
+            veredicto = "posible"
+    if misma_referencia(ref.sku, cand.sku):
+        motivos = [f"misma referencia {cand.sku}"] + motivos
     d = a_dict(cand, iva)
     pr, pc = ref.precio_con_iva(iva), cand.precio_con_iva(iva)
     d.update(puntajes={"specs": ps, "descripcion": pd, "foto": pf, "total": total},
@@ -68,6 +76,26 @@ def terminos_busqueda(ref: Producto, conf: dict) -> list[str]:
     return out[:4]
 
 
+def relevancia(ref: Producto, enlace) -> int:
+    """2 = el resultado de búsqueda menciona la referencia o el modelo; 1 = un chip; 0 = nada."""
+    txt = re.sub(r"[^A-Z0-9+]", "", (getattr(enlace, "texto", "") + " " + str(enlace)).upper())
+    codigos = [re.sub(r"[^A-Z0-9+]", "", c.upper()) for c in [ref.sku, *ref.specs.get("modelos", [])] if c]
+    if any(len(c) >= 3 and c.rstrip("+") in txt for c in codigos):
+        return 2
+    if any(c in txt for c in ref.specs.get("chips", [])):
+        return 1
+    return 0
+
+
+def priorizar(ref: Producto, enlaces: list) -> list:
+    """Ordena por relevancia y, si hay resultados que mencionan la referencia, descarta los que no
+    (así no se gastan créditos abriendo productos que no tienen nada que ver)."""
+    con = sorted(enlaces, key=lambda e: -relevancia(ref, e))
+    if con and relevancia(ref, con[0]) > 0:
+        con = [e for e in con if relevancia(ref, e) > 0]
+    return con
+
+
 def procesar(cli: Cliente, item: dict, iva: float, previo: dict) -> dict:
     cache_fotos: dict = {}
     ref = suconel.leer(cli.html(item["suconel"]), item["suconel"])
@@ -82,11 +110,15 @@ def procesar(cli: Cliente, item: dict, iva: float, previo: dict) -> dict:
         try:
             # 1) URLs puestas a mano en productos.json  2) búsqueda por referencia, chip y palabras clave
             urls = list(conf.get("urls", []))
+            encontrados = []
             for t in terminos_busqueda(ref, conf):
                 for u in mod.buscar(cli, t):
-                    if u not in urls:
-                        urls.append(u)
-            for u in urls[: conf.get("maximo", 12)]:
+                    if u not in urls and u not in encontrados:
+                        encontrados.append(u)
+                if sum(1 for u in encontrados if relevancia(ref, u) >= 2) >= 2:
+                    break                      # ya hay resultados con la referencia: no gastar más búsquedas
+            urls += priorizar(ref, encontrados)
+            for u in urls[: conf.get("maximo", 6)]:
                 try:
                     c = mod.leer(cli.html(u), u)
                 except Bloqueado:
@@ -98,6 +130,8 @@ def procesar(cli: Cliente, item: dict, iva: float, previo: dict) -> dict:
                     c.iva_incluido = conf["iva_incluido"]
                 c.specs = extraer_specs(c.nombre, c.descripcion, c.sku, c.url)
                 res["candidatos"].append(evaluar(ref, c, img_ref, foto(cli, c.imagen, cache_fotos), iva))
+        except LimiteDiario as e:
+            res["estado"], res["error"] = "limite", str(e)
         except Bloqueado as e:
             res["estado"], res["error"] = "bloqueado", str(e)
         except Exception as e:

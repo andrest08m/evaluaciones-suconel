@@ -4,29 +4,39 @@ from __future__ import annotations
 import re
 from urllib.parse import quote_plus
 
-from .base import Cliente, Producto, absoluta, jsonld_producto, meta, precio_cop, sopa, texto
+from .base import Cliente, Enlace, Producto, absoluta, jsonld_producto, meta, precio_cop, sopa, texto
 
 TIENDA = "Didácticas Electrónicas"
 BASE = "https://www.didacticaselectronicas.com"
 RE_PRODUCTO = re.compile(r"^/shop/(?!category/|cart|checkout|wishlist|products/)[a-z0-9\-]+-\d+$")
 
 
-def buscar(cli: Cliente, termino: str, maximo: int = 8) -> list[str]:
+def buscar(cli: Cliente, termino: str, maximo: int = 8) -> list[Enlace]:
     """Usa el buscador de la tienda (/shop?search=…) y devuelve URLs de producto."""
     html = cli.html(f"{BASE}/shop?search={quote_plus(termino)}")
     return urls_de_busqueda(html, maximo)
 
 
-def urls_de_busqueda(html: str, maximo: int = 8) -> list[str]:
-    urls = []
+def urls_de_busqueda(html: str, maximo: int = 8) -> list[Enlace]:
+    """URLs de producto de la página de resultados, con el texto de su tarjeta (nombre, [referencia], precio)."""
+    urls: list[Enlace] = []
+    vistos: dict[str, Enlace] = {}
     for a in sopa(html).find_all("a", href=True):
         ruta = a["href"].split("?")[0].split("#")[0]
         if ruta.startswith(BASE):
             ruta = ruta[len(BASE):]
-        if RE_PRODUCTO.match(ruta) and BASE + ruta not in urls:
-            urls.append(BASE + ruta)
+        if not RE_PRODUCTO.match(ruta):
+            continue
+        tarjeta = a.find_parent(class_=re.compile(r"oe_product|o_wsale_product|product_card|card")) or a
+        txt = " ".join(filter(None, [tarjeta.get_text(" ", strip=True), a.get("title", ""), a.get("aria-label", "")]))
+        u = BASE + ruta
+        if u in vistos:
+            vistos[u].texto += " " + txt
+            continue
         if len(urls) >= maximo:
-            break
+            continue
+        vistos[u] = Enlace(u, txt)
+        urls.append(vistos[u])
     return urls
 
 

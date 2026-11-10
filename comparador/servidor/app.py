@@ -34,7 +34,7 @@ from tiendas.base import Cliente  # noqa: E402
 RE_SUCONEL = re.compile(r"^https://(www\.)?suconel\.com/productos/[a-z0-9\-]+/?$")
 LIMITE_POR_HORA = 20          # comparaciones por usuario por hora
 IVA = 0.19
-COMPETIDORES = {"didacticas": {"maximo": 8}}
+COMPETIDORES = {"didacticas": {"maximo": 5}}
 
 app = FastAPI(title="Comparador de precios Suconel")
 app.add_middleware(

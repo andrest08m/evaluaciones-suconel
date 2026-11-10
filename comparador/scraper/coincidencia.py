@@ -204,18 +204,54 @@ def puntaje_foto(img_a: bytes | None, img_b: bytes | None) -> float | None:
         return None
 
 
-def coincidencia_fuerte(a: dict, b: dict, ps: float | None) -> bool:
-    """Mismo chip o mismo modelo, características casi iguales y (si se conocen) mismas medidas."""
-    if ps is None or ps < 90:
-        return False
-    mismo_chip = bool(a.get("chips")) and set(a.get("chips", [])) == set(b.get("chips", []))
-    modelo = bool(_mismo_modelo(a.get("modelos", []), b.get("modelos", [])))
-    if not (mismo_chip or modelo):
+# Palabras que distinguen variantes de un mismo modelo (con display, con cámara, kit, cable de 4 m…).
+VARIANTES = {
+    "display": r"display|pantalla",
+    "camara": r"camara|\bcam\b|ov2640",
+    "kit": r"\bkit\b|combo",
+    "bateria": r"bateria",
+    "sonda": r"sonda|prueba de agua|impermeable|waterproof",
+}
+
+
+def _longitud_cable(t: str) -> float | None:
+    m = re.search(r"(\d+(?:[.,]\d+)?)\s*(?:m|mts?|metros?)\b", _norm(t))
+    return _f(m.group(1)) if m else None
+
+
+def diferencias_variante(nombre_a: str, nombre_b: str) -> list[str]:
+    """Rasgos que tiene un nombre y el otro no (p. ej. «display»), y largo de cable distinto."""
+    na, nb = _norm(nombre_a), _norm(nombre_b)
+    dif = [k for k, rx in VARIANTES.items() if bool(re.search(rx, na)) != bool(re.search(rx, nb))]
+    la, lb = _longitud_cable(nombre_a), _longitud_cable(nombre_b)
+    if la and lb and abs(la - lb) > 0.01:
+        dif.append(f"cable {la:g} m vs {lb:g} m")
+    return dif
+
+
+def misma_referencia(sku_a: str, sku_b: str) -> bool:
+    """La referencia de Suconel aparece en la del competidor (o al revés): HC06 ↔ BT-HC-06, XL6009 ↔ TAR-XL6009."""
+    a, b = (re.sub(r"[^A-Z0-9+]", "", (x or "").upper()) for x in (sku_a, sku_b))
+    if len(a) < 4 or len(b) < 4:
+        return a == b and bool(a)
+    return a == b or a in b or b in a
+
+
+def coincidencia_fuerte(a: dict, b: dict, ps: float | None, sku_a: str = "", sku_b: str = "",
+                        nombre_a: str = "", nombre_b: str = "") -> bool:
+    """¿Es el mismo producto? Exige que no haya diferencias de variante y además:
+    - la misma referencia (SKU) con características compatibles, o
+    - el mismo chip con al menos 3 características casi iguales y las mismas medidas."""
+    if diferencias_variante(nombre_a, nombre_b):
         return False
     da, db = a.get("dimensiones_mm"), b.get("dimensiones_mm")
     if da and db and any(_cerca(x, y) < 0.85 for x, y in zip(da[:2], db[:2])):
         return False
-    return True
+    if misma_referencia(sku_a, sku_b) and (ps is None or ps >= 70):
+        return True
+    comunes = sum(1 for k in ("corriente_a", "vin", "vout", "frecuencia_khz", "potencia_w", "dimensiones_mm") if a.get(k) and b.get(k))
+    mismo_chip = bool(a.get("chips")) and set(a.get("chips", [])) == set(b.get("chips", []))
+    return mismo_chip and comunes >= 3 and ps is not None and ps >= 90
 
 
 def combinar(specs: float | None, desc: float | None, foto: float | None, conflicto: bool,

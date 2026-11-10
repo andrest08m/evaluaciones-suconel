@@ -146,3 +146,58 @@ def test_terminos_de_busqueda():
     ref = leer(suconel, "suconel_ut33c.html", "https://suconel.com/productos/multimetro-de-mano-uni-trend-ut33c")
     t = terminos_busqueda(ref, {})
     assert t[0] == "UT33C+" and "UT33C" in t and "UT363BT" not in t
+
+
+def test_sku_desde_la_url():
+    p = leer(suconel, "suconel_ar3.html",
+             "https://suconel.com/productos/placa-arduino-uno-r3-para-control-electronico-basico-con-chip-ch340-y-cable-usb-ar3")
+    assert p.sku == "AR3"
+
+
+def test_variantes_y_referencia():
+    from coincidencia import coincidencia_fuerte, diferencias_variante, misma_referencia
+    assert misma_referencia("HC06", "BT-HC-06") and misma_referencia("XL6009", "TAR-XL6009")
+    assert not misma_referencia("AR3", "D-ESP32-30PBAT-C") and not misma_referencia("DS18B20", "DFR0198")
+    suc = "Sensor De Temperatura DS18B20 Con Sonda Impermeable De 1 Metro Para Aplicaciones Técnicas DS18B20"
+    assert "sonda" in diferencias_variante(suc, "Módulo sensor de temperatura DS18B20")
+    assert diferencias_variante(suc, "Sensor de temperatura a prueba de agua DS18B20 - Cable 4MTS") == ["cable 1 m vs 4 m"]
+    assert diferencias_variante(suc, "Sensor de temperatura a prueba de agua DS18B20") == []
+    assert "display" in diferencias_variante("Módulo XL6009", "Conversor DC/DC Elevador. 35V 3A. Con display")
+    assert diferencias_variante("Módulo Xl6009 Boost De 4A XL6009", "Conversor DC/DC Elevador. 35V 3A") == []
+    # misma referencia + sin diferencias de variante => mismo producto
+    assert coincidencia_fuerte({"modelos": ["HC06"]}, {"modelos": ["HC06"]}, 100, "HC06", "BT-HC-06",
+                               "Módulo Bluetooth HC-06", "Módulo Bluetooth HC06, V 2.3_1E")
+    # el mismo chip (CH340) en el nombre NO basta
+    assert not coincidencia_fuerte({"modelos": ["CH340"]}, {"modelos": ["CH340"]}, 100, "AR3", "D-ESP32-30PBAT-C",
+                                   "Placa Arduino Uno R3 Con Chip CH340", "Módulo WiFi/Bluetooth ESP-32. Con CH340")
+
+
+def test_priorizar_resultados():
+    from comparar import priorizar
+    from tiendas.base import Enlace
+    ref = leer(suconel, "suconel_ut33c.html", "https://suconel.com/productos/multimetro-de-mano-uni-trend-ut33c")
+    a = Enlace("https://x/shop/anemometro-1", "Anemómetro mini digital UT363BT $ 138.242")
+    b = Enlace("https://x/shop/ut33c-multimetro-digital-ut-33c-unit-11599", "[UT33C+] Multímetro digital UT-33C+ UNIT $ 63.879")
+    assert priorizar(ref, [a, b]) == [b]
+
+
+def test_limite_diario_se_informa(monkeypatch):
+    import comparar
+    from tiendas import didacticas
+    from tiendas.base import LimiteDiario
+
+    class C:
+        via_firecrawl = set()
+
+        def html(self, u):
+            if "suconel" in u:
+                return (PAG / "suconel_ut33c.html").read_text(encoding="utf-8")
+            raise LimiteDiario("Se alcanzó el límite diario de páginas de Firecrawl (FIRECRAWL_MAX_DIA)")
+
+        def bytes(self, u):
+            raise RuntimeError
+
+    monkeypatch.setattr(didacticas, "buscar", lambda c, t, maximo=8: c.html("https://didacticas/x"))
+    r = comparar.procesar(C(), {"id": "x", "suconel": "https://suconel.com/productos/multimetro-de-mano-uni-trend-ut33c",
+                                "competidores": {"didacticas": {}}}, 0.19, {})
+    assert r["competidores"][0]["estado"] == "limite"

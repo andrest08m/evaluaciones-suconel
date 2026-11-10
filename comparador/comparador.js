@@ -103,7 +103,12 @@ function render(){
 
     p.competidores.forEach(c => {
       const t = el("div", "ctienda", c.tienda);
-      if (c.estado !== "ok") t.append(el("span", "cestado " + c.estado, c.estado === "bloqueado" ? "La tienda bloqueó la consulta" : "Error al consultar"));
+      if (c.estado !== "ok") {
+        const txt = { bloqueado: "La tienda bloqueó la consulta", limite: "Se alcanzó el límite diario de Firecrawl — intenta mañana", error: "Error al consultar" }[c.estado] || "Error al consultar";
+        const e = el("span", "cestado " + (c.estado === "limite" ? "viejo" : c.estado), txt);
+        if (c.error) e.title = c.error;
+        t.append(e);
+      }
       if (c.via === "firecrawl") t.append(el("span", "cestado via", "Leído con Firecrawl"));
       if (c.datos_de) t.append(el("span", "cestado viejo", "Datos del " + new Date(c.datos_de).toLocaleDateString("es-CO")));
       card.append(t);

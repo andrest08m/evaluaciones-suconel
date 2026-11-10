@@ -26,7 +26,21 @@ def _cupo_firecrawl() -> bool:
 
 
 class Bloqueado(Exception):
-    """La tienda rechazó la petición (403, 429, captcha…). No se intenta saltar el bloqueo."""
+    """La tienda rechazó la petición (403, 429, captcha…)."""
+
+
+class LimiteDiario(Bloqueado):
+    """Se alcanzó el máximo diario de páginas leídas con Firecrawl (FIRECRAWL_MAX_DIA)."""
+
+
+class Enlace(str):
+    """URL de un resultado de búsqueda con el texto que lo acompaña (nombre, referencia, precio)."""
+    texto: str = ""
+
+    def __new__(cls, url: str, texto: str = ""):
+        e = super().__new__(cls, url)
+        e.texto = texto
+        return e
 
 
 @dataclass
@@ -108,7 +122,7 @@ class Cliente:
 
     def _firecrawl(self, url: str) -> str:
         if not _cupo_firecrawl():
-            raise Bloqueado("Firecrawl: se alcanzó el límite diario de páginas (FIRECRAWL_MAX_DIA)")
+            raise LimiteDiario("Se alcanzó el límite diario de páginas de Firecrawl (FIRECRAWL_MAX_DIA)")
         try:
             r = self.http.post(FIRECRAWL_URL, timeout=90,
                                headers={"Authorization": f"Bearer {self.firecrawl_key}"},

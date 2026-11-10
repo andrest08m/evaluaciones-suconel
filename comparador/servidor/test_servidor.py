@@ -99,7 +99,8 @@ def test_compara_y_guarda(cli):
     assert d["id"] == "modulo-regulador-dc-dc-ajustable-lm-2596"
     assert d["referencia"]["sku"] == "LM2596"
     cands = d["competidores"][0]["candidatos"]
-    assert len(cands) == 2 and all(c["veredicto"] == "alternativa" for c in cands)
+    # solo se abre el resultado que menciona LM2596 (el XL4015 se descarta para ahorrar créditos)
+    assert len(cands) == 1 and cands[0]["veredicto"] == "alternativa"
     assert d["pedido_por"] == "laura"
     assert cli.bd.guardado[d["id"]]["referencia"]["precio"] == 3135
 
