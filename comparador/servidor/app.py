@@ -93,6 +93,11 @@ class Pedido(BaseModel):
     url: str
 
 
+@app.get("/")
+def inicio():
+    return {"ok": True, "servicio": "Comparador de precios Suconel", "uso": "POST /comparar desde la página del comparador"}
+
+
 @app.get("/salud")
 def salud():
     return {"ok": True}
