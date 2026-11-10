@@ -82,7 +82,7 @@ comparador/
 - **Actualización:** el workflow `.github/workflows/comparador-precios.yml` corre todos los días (y a mano desde *Actions → Comparador de precios → Run workflow*) y guarda `precios.json`.
 - **En local:** `pip install -r comparador/scraper/requirements.txt` y `python comparador/scraper/comparar.py`.
 - **Comparar al momento:** en la página del comparador, un usuario aprobado pega la URL de un producto de Suconel y toca «Comparar». La página llama al servidor en **Render** (`comparador/servidor/`), que compara el producto y guarda el resultado en Firestore (`precios/{id}`).
-- El script respeta `robots.txt`, espera 2 s entre peticiones y **no intenta saltarse bloqueos**: si una tienda responde 403, se muestran los últimos datos buenos marcados con su fecha.
+- El script respeta `robots.txt` y espera 2 s entre peticiones. Si una tienda responde 403/429 y existe `FIRECRAWL_API_KEY` (en Render y, opcional, como *secret* de GitHub), esa tienda se lee a través de [Firecrawl](https://firecrawl.dev) con un máximo diario de páginas (`FIRECRAWL_MAX_DIA`). Sin clave, o si Firecrawl también falla, se muestran los últimos datos buenos marcados con su fecha.
 
 ### Servidor en Render (plan gratuito)
 

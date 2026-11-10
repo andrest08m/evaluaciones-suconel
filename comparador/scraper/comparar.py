@@ -13,6 +13,7 @@ import json
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
+from urllib.parse import urlparse
 
 from coincidencia import combinar, extraer_specs, puntaje_descripcion, puntaje_foto, puntaje_specs
 from tiendas import didacticas, suconel
@@ -97,6 +98,9 @@ def procesar(cli: Cliente, item: dict, iva: float, previo: dict) -> dict:
             if ant and ant.get("candidatos"):
                 res["candidatos"] = ant["candidatos"]
                 res["datos_de"] = ant.get("datos_de") or previo.get("generado")
+
+        if urlparse(getattr(mod, "BASE", "")).netloc in cli.via_firecrawl:
+            res["via"] = "firecrawl"
 
         orden = {"mismo": 0, "posible": 1, "alternativa": 2, "distinto": 3}
         res["candidatos"].sort(key=lambda c: (orden[c["veredicto"]], -c["puntajes"]["total"]))

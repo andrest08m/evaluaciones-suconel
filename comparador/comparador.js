@@ -91,6 +91,7 @@ function render(){
     p.competidores.forEach(c => {
       const t = el("div", "ctienda", c.tienda);
       if (c.estado !== "ok") t.append(el("span", "cestado " + c.estado, c.estado === "bloqueado" ? "La tienda bloqueó la consulta" : "Error al consultar"));
+      if (c.via === "firecrawl") t.append(el("span", "cestado via", "Leído con Firecrawl"));
       if (c.datos_de) t.append(el("span", "cestado viejo", "Mostrando datos del " + new Date(c.datos_de).toLocaleDateString("es-CO")));
       card.append(t);
       const cands = c.candidatos.filter(x => verDist || x.veredicto !== "distinto");

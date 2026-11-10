@@ -64,3 +64,4 @@ a.iconbtn{text-decoration:none;display:inline-block}
 .cmsg.ok{color:var(--ok)}
 .cmsg:empty{display:none}
 .corigen{font-weight:400;font-size:.8rem;color:var(--muted);margin-left:.5rem}
+.cestado.via{background:#ede9fe;color:#6d28d9}

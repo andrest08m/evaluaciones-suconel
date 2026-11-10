@@ -17,3 +17,7 @@ services:
         value: https://andrest08m.github.io
       - key: FIREBASE_SERVICE_ACCOUNT
         sync: false   # Render la pide al crear el servicio: pegar el JSON de la cuenta de servicio
+      - key: FIRECRAWL_API_KEY
+        sync: false   # opcional: clave de firecrawl.dev; se usa solo si una tienda bloquea
+      - key: FIRECRAWL_MAX_DIA
+        value: "150"  # máximo de páginas por día leídas con Firecrawl (protege los créditos)

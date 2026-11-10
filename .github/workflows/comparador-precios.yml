@@ -32,6 +32,9 @@ jobs:
         run: python -m pytest -q comparador/scraper/tests
 
       - name: Consultar tiendas y comparar
+        env:
+          FIRECRAWL_API_KEY: ${{ secrets.FIRECRAWL_API_KEY }}   # opcional
+          FIRECRAWL_MAX_DIA: "100"
         run: python comparador/scraper/comparar.py
 
       - name: Guardar resultados

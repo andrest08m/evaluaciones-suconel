@@ -20,6 +20,8 @@ MAPA = {
 
 
 class ClienteFalso:
+    via_firecrawl = set()
+
     def html(self, u):
         return (PAG / MAPA[u]).read_text(encoding="utf-8")
 
