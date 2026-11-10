@@ -361,6 +361,7 @@ function authMsg(e){
   if (c.includes("network-request-failed")) return "Sin conexión. Revisa tu internet.";
   if (c.includes("unauthorized-domain")) return "Este dominio no está autorizado en Firebase (Authentication → Settings → Authorized domains).";
   if (c.includes("operation-not-allowed")) return "El login con correo y contraseña no está activado en Firebase.";
+  if (c.includes("unavailable") || c.includes("failed-precondition") || c.includes("not-found")) return "No hay conexión con la base de datos. En Firebase revisa que Firestore Database esté creada (base «(default)») y que las reglas estén publicadas.";
   if (c.includes("configuration-not-found")) return "Firebase Authentication no está activado: en la consola entra a Authentication → Get started y activa Email/Password.";
   if (c.includes("permission-denied")) return "Firebase rechazó la operación (revisa las reglas de Firestore).";
   return "Ocurrió un error (" + (c || "desconocido") + "). Inténtalo de nuevo.";
@@ -469,9 +470,15 @@ async function loadAccount(user){
   let snap = await getDoc(doc(db, "users", user.uid));
   let data = snap.exists() ? snap.data() : null;
   if (!data) {
-    const prof = pendingProfile || { username: (user.email || "").split("@")[0], name: (user.email || "").split("@")[0], wantAdmin: false };
-    pendingProfile = null;
+    let prof = pendingProfile;
+    if (!prof) {   // la cuenta existe en Auth pero sin perfil (p. ej. falló la creación): si aún no hay admin, queda como admin
+      const u = (user.email || "").split("@")[0];
+      let noAdmin = false;
+      try { noAdmin = !(await getDoc(doc(db, "config", "admin"))).exists(); } catch (e) { throw e; }
+      prof = { username: u, name: u, wantAdmin: noAdmin };
+    }
     data = await createProfile(user, prof);
+    pendingProfile = null;
   }
   acct = { uid: user.uid, username: data.username, name: data.name, role: data.role, estado: data.estado };
   mine = {};
