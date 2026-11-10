@@ -15,7 +15,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from urllib.parse import urlparse
 
-from coincidencia import combinar, extraer_specs, puntaje_descripcion, puntaje_foto, puntaje_specs
+from coincidencia import coincidencia_fuerte, combinar, extraer_specs, puntaje_descripcion, puntaje_foto, puntaje_specs
 from tiendas import didacticas, suconel
 from tiendas.base import Bloqueado, Cliente, Producto
 
@@ -47,7 +47,7 @@ def evaluar(ref: Producto, cand: Producto, img_ref, img_cand, iva: float) -> dic
     ps, motivos, conflicto = puntaje_specs(ref.specs, cand.specs)
     pd = puntaje_descripcion(ref.nombre, ref.descripcion, cand.nombre, cand.descripcion)
     pf = puntaje_foto(img_ref, img_cand)
-    total, veredicto = combinar(ps, pd, pf, conflicto)
+    total, veredicto = combinar(ps, pd, pf, conflicto, coincidencia_fuerte(ref.specs, cand.specs, ps))
     d = a_dict(cand, iva)
     pr, pc = ref.precio_con_iva(iva), cand.precio_con_iva(iva)
     d.update(puntajes={"specs": ps, "descripcion": pd, "foto": pf, "total": total},
@@ -70,7 +70,7 @@ def procesar(cli: Cliente, item: dict, iva: float, previo: dict) -> dict:
         try:
             # 1) URLs puestas a mano en productos.json  2) búsqueda por referencia, chip y palabras clave
             urls = list(conf.get("urls", []))
-            terminos = conf.get("buscar") or [ref.sku, *ref.specs.get("chips", [])]
+            terminos = conf.get("buscar") or [ref.sku, *ref.specs.get("chips", []), *ref.specs.get("modelos", [])[:2]]
             for t in dict.fromkeys(x for x in terminos if x):
                 for u in mod.buscar(cli, t):
                     if u not in urls:

@@ -1,17 +1,17 @@
 {
   "iva": 0.19,
-  "productos": [
-    {
-      "id": "lm2596",
-      "suconel": "https://suconel.com/productos/modulo-regulador-dc-dc-ajustable-lm-2596",
-      "competidores": {
-        "didacticas": {
-          "urls": ["https://www.didacticaselectronicas.com/shop/lm2596-v-5a-conversor-dc-dc-reductor-0-24v-5a-xl4005-6792"],
-          "buscar": ["LM2596", "conversor reductor"],
-          "iva_incluido": null,
-          "maximo": 12
-        }
+  "productos": [],
+  "_ejemplo": {
+    "id": "lm2596",
+    "suconel": "https://suconel.com/productos/modulo-regulador-dc-dc-ajustable-lm-2596",
+    "competidores": {
+      "didacticas": {
+        "buscar": [
+          "LM2596"
+        ],
+        "iva_incluido": null,
+        "maximo": 8
       }
     }
-  ]
+  }
 }

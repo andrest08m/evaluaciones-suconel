@@ -37,12 +37,19 @@ def extraer_specs(nombre: str, descripcion: str, sku: str = "", url: str = "") -
     chips |= set(RE_CHIP.findall(re.sub(r"[\s\-_]", "", f"{sku} {nombre}".upper())))
     if chips:
         sp["chips"] = sorted(chips)
+    modelos = modelos_de(sku, nombre)
+    if modelos:
+        sp["modelos"] = modelos
 
-    # Corriente: la primera cifra en amperios que aparece justo después de la palabra "corriente".
-    for m in re.finditer(r"corriente|current", _norm(texto)):
-        a = _amperios(texto[m.end():m.end() + 60])
-        if a:
-            sp["corriente_a"] = a[0]
+    # Corriente: primero "corriente de salida"; si no hay, la primera cifra después de "corriente".
+    nt = _norm(texto)
+    for patron in (r"corriente (?:maxima |pico |nominal )?de salida|output current", r"corriente|current"):
+        for m in re.finditer(patron, nt):
+            a = _amperios(texto[m.end():m.end() + 60])
+            if a:
+                sp["corriente_a"] = a[0]
+                break
+        if "corriente_a" in sp:
             break
     if "corriente_a" not in sp:
         a = _amperios(nombre) or _amperios(texto)
@@ -84,6 +91,29 @@ def extraer_specs(nombre: str, descripcion: str, sku: str = "", url: str = "") -
     return sp
 
 
+UNIDAD = re.compile(r"\d+(?:[.,]\d+)?(?:V|A|W|MA|MAH|KHZ|HZ|MM|CM|VDC|VAC|VCC|KV|KW|MW|UF|NF|PF|G|KG|M|MP|P|GB|TB|CH)", re.I)
+
+
+def modelos_de(sku: str, nombre: str) -> list[str]:
+    """Códigos de modelo (letras + números) de la referencia y del nombre: XL6009, UT33C+, TAR-XL6009…"""
+    out = []
+    for tok in re.split(r"[\s,;()/|\[\]]+", f"{sku} {nombre}"):
+        t = re.sub(r"[^A-Z0-9+]", "", tok.upper())
+        if len(t) >= 4 and re.search(r"\d", t) and re.search(r"[A-Z]", t) and not UNIDAD.fullmatch(t) \
+                and not re.fullmatch(r"\d+(?:V|A|W)?\d*(?:V|A|W)", t):
+            if t not in out:
+                out.append(t)
+    return out
+
+
+def _mismo_modelo(a: list[str], b: list[str]) -> str:
+    for x in a:
+        for y in b:
+            if x == y or (len(x) >= 5 and x in y) or (len(y) >= 5 and y in x):
+                return x
+    return ""
+
+
 def _amperios(t: str) -> list[float]:
     vals = [_f(x) for x in re.findall(NUM + r"\s?A\b", t)]
     vals += [_f(x) / 1000 for x in re.findall(NUM + r"\s?mA\b", t)]
@@ -116,6 +146,11 @@ def puntaje_specs(a: dict, b: dict) -> tuple[float | None, list[str], bool]:
         else:
             partes.append(0.0); conflicto = True
             motivos.append(f"chip distinto: {', '.join(sorted(ca))} vs {', '.join(sorted(cb))}")
+
+    if a.get("modelos") and b.get("modelos"):
+        m = _mismo_modelo(a["modelos"], b["modelos"])
+        if m:
+            partes.append(1.0); motivos.append(f"mismo modelo {m}")
 
     if a.get("corriente_a") and b.get("corriente_a"):
         r = _cerca(a["corriente_a"], b["corriente_a"])
@@ -169,14 +204,29 @@ def puntaje_foto(img_a: bytes | None, img_b: bytes | None) -> float | None:
         return None
 
 
-def combinar(specs: float | None, desc: float | None, foto: float | None, conflicto: bool) -> tuple[float, str]:
+def coincidencia_fuerte(a: dict, b: dict, ps: float | None) -> bool:
+    """Mismo chip o mismo modelo, características casi iguales y (si se conocen) mismas medidas."""
+    if ps is None or ps < 90:
+        return False
+    mismo_chip = bool(a.get("chips")) and set(a.get("chips", [])) == set(b.get("chips", []))
+    modelo = bool(_mismo_modelo(a.get("modelos", []), b.get("modelos", [])))
+    if not (mismo_chip or modelo):
+        return False
+    da, db = a.get("dimensiones_mm"), b.get("dimensiones_mm")
+    if da and db and any(_cerca(x, y) < 0.85 for x, y in zip(da[:2], db[:2])):
+        return False
+    return True
+
+
+def combinar(specs: float | None, desc: float | None, foto: float | None, conflicto: bool,
+             fuerte: bool = False) -> tuple[float, str]:
     valores = {"specs": specs, "descripcion": desc, "foto": foto}
     usados = {k: v for k, v in valores.items() if v is not None}
     total = sum(PESOS[k] * v for k, v in usados.items()) / sum(PESOS[k] for k in usados) if usados else 0.0
     total = round(total, 1)
     if conflicto:
         veredicto = "alternativa" if total >= 45 else "distinto"
-    elif total >= 80:
+    elif fuerte or total >= 80:
         veredicto = "mismo"
     elif total >= 60:
         veredicto = "posible"

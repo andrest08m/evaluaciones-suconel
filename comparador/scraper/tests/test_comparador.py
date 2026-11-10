@@ -94,3 +94,37 @@ def test_foto():
     assert puntaje_foto(img("rect"), img("rect")) == 100
     assert puntaje_foto(img("rect"), img("circ")) < 80
     assert puntaje_foto(img("rect"), None) is None
+
+
+# ---- casos reales que fallaron (10-nov-2026) ----
+U_XL6009 = "https://suconel.com/productos/modulo-xl6009-para-elevacion-de-voltaje-estable-dc-dc-boost-de-4a-xl6009"
+U_TAR = "https://www.didacticaselectronicas.com/shop/tar-xl6009-conversor-dc-dc-elevador-35v-3a-21004"
+U_TAR_D = "https://www.didacticaselectronicas.com/shop/tar-xl6009-disp-conversor-dc-dc-elevador-35v-3a-con-display-52756"
+
+
+def test_suconel_sku_del_producto_no_de_relacionados():
+    p = leer(suconel, "suconel_xl6009.html", U_XL6009)
+    assert p.sku == "XL6009"            # por el enlace de WhatsApp (el campo SKU viene vacío)
+    assert p.precio is None              # sin precio publicado: "Comprar WhatsApp"
+    assert "AD1200" not in p.descripcion
+    q = leer(suconel, "suconel_ut33c.html", "https://suconel.com/productos/multimetro-de-mano-uni-trend-ut33c")
+    assert q.sku == "UT33C+"
+    assert q.precio == 61980 and q.iva_incluido is False
+    assert q.descripcion.startswith("El Multímetro de Mano Uni-Trend UT33C+")
+    assert "UT33C+" in q.specs["modelos"]
+
+
+def test_xl6009_es_el_mismo_que_tar_xl6009():
+    from coincidencia import coincidencia_fuerte
+    ref = leer(suconel, "suconel_xl6009.html", U_XL6009)
+    c = leer(didacticas, "didacticas_tar_xl6009.html", U_TAR)
+    assert c.specs["corriente_a"] == 3          # corriente de SALIDA, no la de entrada (4 A)
+    ps, motivos, conflicto = puntaje_specs(ref.specs, c.specs)
+    assert not conflicto and "mismo chip XL6009" in motivos
+    pd = puntaje_descripcion(ref.nombre, ref.descripcion, c.nombre, c.descripcion)
+    assert combinar(ps, pd, None, conflicto, coincidencia_fuerte(ref.specs, c.specs, ps))[1] == "mismo"
+    # la versión con display tiene otras medidas: no es el mismo producto
+    d = leer(didacticas, "didacticas_tar_xl6009_disp.html", U_TAR_D)
+    ps, _, conflicto = puntaje_specs(ref.specs, d.specs)
+    pd = puntaje_descripcion(ref.nombre, ref.descripcion, d.nombre, d.descripcion)
+    assert combinar(ps, pd, None, conflicto, coincidencia_fuerte(ref.specs, d.specs, ps))[1] != "mismo"

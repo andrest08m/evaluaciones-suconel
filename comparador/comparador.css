@@ -65,3 +65,12 @@ a.iconbtn{text-decoration:none;display:inline-block}
 .cmsg:empty{display:none}
 .corigen{font-weight:400;font-size:.8rem;color:var(--muted);margin-left:.5rem}
 .cestado.via{background:#ede9fe;color:#6d28d9}
+.cprecio.sinprecio{color:var(--muted);font-size:clamp(1rem,1.5vw,1.3rem)}
+.mini.actualizar{margin-top:.5rem;font:inherit;font-size:.8rem;padding:.25em .7em;border-radius:8px;border:2px solid var(--line);background:var(--card);cursor:pointer}
+.mini.actualizar:hover{border-color:var(--accent)}
+.mini.actualizar:disabled{opacity:.5;cursor:wait}
+.cmas{border-top:1px dashed var(--line)}
+.cmas summary{cursor:pointer;padding:.7rem 1.4rem;color:var(--accent);font-weight:600;font-size:.92rem}
+.cmas[open] summary{border-bottom:1px dashed var(--line)}
+.dif.mas::before{content:"✓ "}
+#lista{display:flex;flex-direction:column;gap:1.2rem}

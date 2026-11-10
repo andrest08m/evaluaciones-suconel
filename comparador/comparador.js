@@ -32,10 +32,21 @@ function specsChips(s, conflictos = []){
 }
 
 function precio(p){
+  if (p.precio == null) {
+    const box = el("div", "cprecio sinprecio", "Sin precio");
+    box.append(el("small", null, p.tienda === "Suconel" ? "Se cotiza por WhatsApp" : "No publicado"));
+    return box;
+  }
   const box = el("div", "cprecio", cop(p.precio_con_iva));
   const nota = p.iva_incluido === false ? cop(p.precio) + " + IVA" : p.iva_incluido === true ? "IVA incluido" : "IVA sin confirmar";
   box.append(el("small", null, nota));
   return box;
+}
+
+function difTexto(d){
+  if (d == null) return null;
+  return el("div", "dif " + (d > 0 ? "mas" : d < 0 ? "menos" : ""),
+    d === 0 ? "Mismo precio" : d > 0 ? "Suconel " + d + " % más barato" : "Suconel " + Math.abs(d) + " % más caro");
 }
 
 function barra(nombre, v){
@@ -58,11 +69,8 @@ function candidato(c){
   const p = el("div", "puntajes");
   p.append(barra("Características", c.puntajes.specs), barra("Descripción", c.puntajes.descripcion), barra("Foto", c.puntajes.foto), barra("Total", c.puntajes.total));
   info.append(p);
-  const der = precio(c);
-  if (c.diferencia_pct != null) {
-    const d = c.diferencia_pct;
-    der.append(el("div", "dif " + (d > 0 ? "mas" : d < 0 ? "menos" : ""), d === 0 ? "Mismo precio" : (d > 0 ? "+" : "") + d + " % vs Suconel"));
-  }
+  const der = precio(c), dif = difTexto(c.diferencia_pct);
+  if (dif) der.append(dif);
   fila.append(info, der);
   return fila;
 }
@@ -83,20 +91,37 @@ function render(){
     const r = p.referencia, card = el("section", "cprod");
     const ref = el("div", "cref"), info = el("div"), h = el("h2"), a = el("a", null, r.nombre);
     a.href = r.url; a.target = "_blank"; a.rel = "noopener"; h.append(a);
-    const sub = el("div", "csub", "Suconel · Ref. " + r.sku);
+    const sub = el("div", "csub", "Suconel · Ref. " + (r.sku || "—"));
     if (p.generado) sub.append(el("span", "corigen", "Comparado " + fecha(p.generado) + (p.pedido_por ? " por @" + p.pedido_por : "")));
     info.append(h, sub, specsChips(r.specs || {}));
-    ref.append(foto(r.imagen), info, precio(r));
+    const der = precio(r);
+    const upd = el("button", "mini actualizar", "🔄 Actualizar"); upd.title = "Volver a comparar este producto ahora";
+    upd.onclick = () => compararUrl(r.url, upd);
+    der.append(upd);
+    ref.append(foto(r.imagen), info, der);
     card.append(ref);
+
     p.competidores.forEach(c => {
       const t = el("div", "ctienda", c.tienda);
       if (c.estado !== "ok") t.append(el("span", "cestado " + c.estado, c.estado === "bloqueado" ? "La tienda bloqueó la consulta" : "Error al consultar"));
       if (c.via === "firecrawl") t.append(el("span", "cestado via", "Leído con Firecrawl"));
-      if (c.datos_de) t.append(el("span", "cestado viejo", "Mostrando datos del " + new Date(c.datos_de).toLocaleDateString("es-CO")));
+      if (c.datos_de) t.append(el("span", "cestado viejo", "Datos del " + new Date(c.datos_de).toLocaleDateString("es-CO")));
       card.append(t);
-      const cands = c.candidatos.filter(x => verDist || x.veredicto !== "distinto");
-      if (!cands.length) card.append(el("div", "vacio", c.candidatos.length ? "Solo hay productos descartados (activa «Mostrar descartados»)." : "No se encontraron productos."));
-      cands.forEach(x => card.append(candidato(x)));
+
+      // Solo la mejor coincidencia a la vista; el resto, en "Ver detalles".
+      const visibles = c.candidatos.filter(x => verDist || x.veredicto !== "distinto");
+      if (!visibles.length) {
+        card.append(el("div", "vacio", c.candidatos.length ? "No se encontró un producto equivalente (hay " + c.candidatos.length + " descartados)." : "No se encontraron productos."));
+        return;
+      }
+      card.append(candidato(visibles[0]));
+      const resto = visibles.slice(1);
+      if (resto.length) {
+        const det = el("details", "cmas");
+        det.append(el("summary", null, "Ver " + resto.length + (resto.length === 1 ? " resultado más" : " resultados más")));
+        resto.forEach(x => det.append(candidato(x)));
+        card.append(det);
+      }
     });
     lista.append(card);
   });
@@ -121,7 +146,7 @@ async function cargarDiario(){
     const r = await fetch("data/precios.json", { cache: "no-store" });
     const d = await r.json();
     diarios = d.productos.map(p => ({ ...p, generado: p.generado || d.generado }));
-    $("generado").textContent = "Comparación diaria: " + fecha(d.generado);
+    $("generado").textContent = diarios.length ? "Comparación diaria: " + fecha(d.generado) : "";
     $("nota").textContent = d.nota || "";
   } catch (e) { diarios = []; }
   unir();
@@ -138,12 +163,11 @@ async function cargarFirestore(){
 
 function msg(t, cls){ const m = $("msgComparar"); m.textContent = t || ""; m.className = "cmsg" + (cls ? " " + cls : ""); }
 
-async function compararAhora(ev){
-  ev.preventDefault();
+async function compararUrl(url, btn){
   if (!usuario) return msg("Inicia sesión en Evaluaciones (con una cuenta aprobada) para comparar productos.", "err");
-  const url = $("urlComparar").value.trim();
-  const btn = $("btnComparar"); btn.disabled = true;
-  msg("Comparando… puede tardar hasta 1 minuto (más si el servidor estaba dormido).");
+  const textoBtn = btn.textContent; btn.disabled = true;
+  window.scrollTo({ top: 0, behavior: "smooth" });
+  msg("Comparando… puede tardar 1 a 3 minutos (más si el servidor estaba dormido).");
   const t0 = Date.now(), reloj = setInterval(() => msg("Comparando… " + Math.round((Date.now() - t0) / 1000) + " s"), 1000);
   try {
     const token = await usuario.getIdToken();
@@ -157,10 +181,16 @@ async function compararAhora(ev){
     alMomento = [d, ...alMomento.filter(p => p.id !== d.id)];
     $("buscar").value = ""; unir();
     msg("✓ Listo: " + d.referencia.nombre, "ok");
-    $("urlComparar").value = "";
+    return true;
   } catch (e) {
     msg(e.message === "Failed to fetch" ? "No se pudo conectar con el servidor del comparador. Intenta de nuevo en un minuto." : e.message, "err");
-  } finally { clearInterval(reloj); btn.disabled = false; }
+    return false;
+  } finally { clearInterval(reloj); btn.disabled = false; btn.textContent = textoBtn; }
+}
+
+async function compararAhora(ev){
+  ev.preventDefault();
+  if (await compararUrl($("urlComparar").value.trim(), $("btnComparar"))) $("urlComparar").value = "";
 }
 
 $("buscar").addEventListener("input", render);
