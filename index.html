@@ -361,6 +361,7 @@ function authMsg(e){
   if (c.includes("network-request-failed")) return "Sin conexión. Revisa tu internet.";
   if (c.includes("unauthorized-domain")) return "Este dominio no está autorizado en Firebase (Authentication → Settings → Authorized domains).";
   if (c.includes("operation-not-allowed")) return "El login con correo y contraseña no está activado en Firebase.";
+  if (c.includes("configuration-not-found")) return "Firebase Authentication no está activado: en la consola entra a Authentication → Get started y activa Email/Password.";
   if (c.includes("permission-denied")) return "Firebase rechazó la operación (revisa las reglas de Firestore).";
   return "Ocurrió un error (" + (c || "desconocido") + "). Inténtalo de nuevo.";
 }
