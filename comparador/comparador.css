@@ -1,0 +1,55 @@
+/* Estilos del comparador de precios (usa las variables de ../css/styles.css) */
+body{min-height:100vh}
+a.iconbtn{text-decoration:none;display:inline-block}
+.cmeta{font-size:clamp(.8rem,1vw,1rem)}
+.cmain{padding:0 clamp(1rem,4vw,4rem) 3rem;display:flex;flex-direction:column;gap:1.4rem}
+.cintro p{color:var(--muted);font-size:clamp(.95rem,1.2vw,1.2rem);max-width:60rem}
+.cfiltros{display:flex;flex-wrap:wrap;gap:1rem;align-items:center;margin:1rem 0 .7rem}
+.cfiltros input[type=search]{font:inherit;padding:.55em .9em;border:2px solid var(--line);border-radius:12px;min-width:min(26rem,100%);background:var(--card)}
+.cfiltros label{display:flex;gap:.4em;align-items:center;color:var(--muted);cursor:pointer}
+.cleyenda{display:flex;flex-wrap:wrap;gap:.5rem}
+.cnota{margin-top:.7rem;color:var(--warn);font-size:.95rem}
+.cnota:empty{display:none}
+
+.veredicto{display:inline-block;padding:.15em .7em;border-radius:99px;font-weight:600;font-size:.85rem;white-space:nowrap}
+.veredicto.mismo{background:var(--okbg);color:var(--ok)}
+.veredicto.posible{background:#dbeafe;color:var(--accent)}
+.veredicto.alternativa{background:var(--hint);color:var(--warn)}
+.veredicto.distinto{background:var(--line);color:var(--muted)}
+
+.cprod{background:var(--card);border:3px solid var(--line);border-radius:22px;overflow:hidden}
+.cref{display:grid;grid-template-columns:auto 1fr auto;gap:1.2rem;align-items:center;padding:1.2rem 1.4rem;border-bottom:2px solid var(--line)}
+.cfoto{width:88px;height:88px;border-radius:14px;background:var(--bg);border:2px solid var(--line);object-fit:contain;display:grid;place-items:center;font-size:2rem;color:var(--muted)}
+.cref h2{font-size:clamp(1.1rem,1.6vw,1.5rem)}
+.cref h2 a{color:inherit;text-decoration:none}
+.cref h2 a:hover{text-decoration:underline}
+.csub{color:var(--muted);font-size:.95rem;margin-top:.2rem}
+.cprecio{text-align:right;font-weight:800;font-size:clamp(1.2rem,2vw,1.8rem)}
+.cprecio small{display:block;font-weight:400;font-size:.8rem;color:var(--muted)}
+.specs{display:flex;flex-wrap:wrap;gap:.35rem;margin-top:.5rem}
+.spec{background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:.1em .5em;font-size:.82rem}
+.spec.conf{border-color:var(--bad);color:var(--bad);background:var(--badbg)}
+
+.ctienda{padding:.8rem 1.4rem 0;font-weight:700;display:flex;gap:.6rem;align-items:center;flex-wrap:wrap}
+.cestado{font-weight:400;font-size:.85rem;padding:.1em .6em;border-radius:8px}
+.cestado.bloqueado,.cestado.error{background:var(--badbg);color:var(--bad)}
+.cestado.viejo{background:var(--hint);color:var(--warn)}
+
+.cand{display:grid;grid-template-columns:auto 1fr auto;gap:1rem;align-items:start;padding:1rem 1.4rem;border-top:1px dashed var(--line)}
+.cand:first-of-type{border-top:0}
+.cand .cfoto{width:64px;height:64px;font-size:1.5rem}
+.cand h3{font-size:1.05rem;display:flex;gap:.5rem;align-items:center;flex-wrap:wrap}
+.cand h3 a{color:inherit}
+.motivos{color:var(--muted);font-size:.88rem;margin-top:.3rem}
+.puntajes{display:grid;grid-template-columns:auto 120px auto;gap:.15rem .5rem;align-items:center;font-size:.8rem;color:var(--muted);margin-top:.5rem;max-width:280px}
+.barra{height:7px;background:var(--line);border-radius:99px;overflow:hidden}
+.barra i{display:block;height:100%;background:var(--accent)}
+.dif{font-size:.9rem;font-weight:600}
+.dif.mas{color:var(--ok)}
+.dif.menos{color:var(--bad)}
+.vacio{padding:1rem 1.4rem;color:var(--muted)}
+
+@media (max-width:640px){
+  .cref,.cand{grid-template-columns:auto 1fr}
+  .cprecio{grid-column:1/-1;text-align:left}
+}

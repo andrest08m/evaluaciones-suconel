@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Comparador de precios · Suconel</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../css/styles.css">
+<link rel="stylesheet" href="comparador.css">
+</head>
+<body>
+<div class="top">
+  <div class="brand"><a class="iconbtn back" href="../">← Evaluaciones</a>Comparador de precios</div>
+  <div class="hright"><span class="cmeta" id="generado"></span></div>
+</div>
+
+<main class="cmain">
+  <div class="cintro">
+    <p>Compara cada producto de <b>Suconel</b> con otras tiendas por <b>características técnicas</b> (chip, corriente, voltajes, frecuencia, tamaño), <b>descripción</b> y <b>foto</b>.</p>
+    <div class="cfiltros">
+      <input id="buscar" type="search" placeholder="Buscar producto, referencia o chip…">
+      <label><input type="checkbox" id="verDistintos"> Mostrar descartados</label>
+    </div>
+    <div class="cleyenda">
+      <span class="veredicto mismo">Mismo producto</span>
+      <span class="veredicto posible">Posible</span>
+      <span class="veredicto alternativa">Alternativa (otra referencia que cumple la misma función)</span>
+      <span class="veredicto distinto">Distinto</span>
+    </div>
+    <div class="cnota" id="nota"></div>
+  </div>
+  <div id="lista"><div class="rempty">Cargando…</div></div>
+</main>
+
+<script type="module" src="comparador.js"></script>
+</body>
+</html>
