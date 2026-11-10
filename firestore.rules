@@ -1,0 +1,72 @@
+rules_version = '2';
+// Reglas de Firestore para Evaluaciones Suconel.
+// Pegar en: Firebase Console → Firestore Database → Reglas → Publicar.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() { return request.auth != null; }
+    function userPath(uid) { return /databases/$(database)/documents/users/$(uid); }
+    function profile() { return get(userPath(request.auth.uid)).data; }
+    function hasProfile() { return signedIn() && exists(userPath(request.auth.uid)); }
+    function isApproved() { return hasProfile() && profile().estado == 'aprobado'; }
+    function isAdmin() { return isApproved() && profile().role == 'admin'; }
+    // El usuario de la app se guarda como usuario@evaluaciones-suconel.app
+    function emailMatches(username) {
+      return request.auth.token.email == username + '@evaluaciones-suconel.app';
+    }
+
+    // Marca de que ya existe el primer administrador (solo se crea una vez).
+    match /config/admin {
+      allow read: if true;
+      allow create: if signedIn()
+        && request.resource.data.keys().hasOnly(['uid', 'createdAt'])
+        && request.resource.data.uid == request.auth.uid
+        && getAfter(userPath(request.auth.uid)).data.role == 'admin';
+      allow update, delete: if false;
+    }
+
+    // Perfiles: {username, name, role: 'asesor'|'admin', estado: 'pendiente'|'aprobado'|'rechazado', createdAt, createdBy?}
+    match /users/{uid} {
+      allow read: if signedIn() && (request.auth.uid == uid || isAdmin());
+
+      allow create: if
+        // 1) Registro propio de un asesor: queda pendiente
+        (signedIn() && request.auth.uid == uid
+          && request.resource.data.keys().hasOnly(['username', 'name', 'createdAt', 'role', 'estado'])
+          && request.resource.data.role == 'asesor'
+          && request.resource.data.estado == 'pendiente'
+          && emailMatches(request.resource.data.username))
+        // 2) Registro del PRIMER administrador (solo si aún no existe config/admin; va en el mismo lote)
+        || (signedIn() && request.auth.uid == uid
+          && request.resource.data.keys().hasOnly(['username', 'name', 'createdAt', 'role', 'estado'])
+          && request.resource.data.role == 'admin'
+          && request.resource.data.estado == 'aprobado'
+          && emailMatches(request.resource.data.username)
+          && !exists(/databases/$(database)/documents/config/admin)
+          && getAfter(/databases/$(database)/documents/config/admin).data.uid == request.auth.uid)
+        // 3) Un administrador crea el perfil de otra persona
+        || isAdmin();
+
+      // Solo un administrador aprueba, rechaza o cambia roles.
+      allow update: if isAdmin()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['estado', 'role', 'name']);
+      allow delete: if isAdmin();
+    }
+
+    // Resumen de puntajes por usuario y su historial de intentos.
+    match /scores/{uid} {
+      allow read: if signedIn() && (request.auth.uid == uid || isAdmin());
+      allow create, update: if signedIn() && request.auth.uid == uid && isApproved();
+      allow delete: if isAdmin();
+
+      match /attempts/{attemptId} {
+        allow read: if signedIn() && (request.auth.uid == uid || isAdmin());
+        allow create: if signedIn() && request.auth.uid == uid && isApproved()
+          && request.resource.data.keys().hasOnly(['quiz', 'score', 'max', 'hits', 'hints', 'revealed', 'ms', 'at'])
+          && request.resource.data.score is int && request.resource.data.score >= 0 && request.resource.data.score <= 150;
+        allow update: if false;
+        allow delete: if isAdmin();
+      }
+    }
+  }
+}
