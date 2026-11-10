@@ -128,3 +128,21 @@ def test_xl6009_es_el_mismo_que_tar_xl6009():
     ps, _, conflicto = puntaje_specs(ref.specs, d.specs)
     pd = puntaje_descripcion(ref.nombre, ref.descripcion, d.nombre, d.descripcion)
     assert combinar(ps, pd, None, conflicto, coincidencia_fuerte(ref.specs, d.specs, ps))[1] != "mismo"
+
+
+def test_ut33c_es_el_mismo_en_didacticas():
+    from coincidencia import coincidencia_fuerte
+    ref = leer(suconel, "suconel_ut33c.html", "https://suconel.com/productos/multimetro-de-mano-uni-trend-ut33c")
+    c = leer(didacticas, "didacticas_ut33c.html", "https://www.didacticaselectronicas.com/shop/ut33c-multimetro-digital-ut-33c-unit-11599")
+    assert c.sku == "UT33C+" and c.precio == 63879.20
+    ps, motivos, conflicto = puntaje_specs(ref.specs, c.specs)
+    assert "mismo modelo UT33C+" in motivos and not conflicto
+    pd = puntaje_descripcion(ref.nombre, ref.descripcion, c.nombre, c.descripcion)
+    assert combinar(ps, pd, None, conflicto, coincidencia_fuerte(ref.specs, c.specs, ps))[1] == "mismo"
+
+
+def test_terminos_de_busqueda():
+    from comparar import terminos_busqueda
+    ref = leer(suconel, "suconel_ut33c.html", "https://suconel.com/productos/multimetro-de-mano-uni-trend-ut33c")
+    t = terminos_busqueda(ref, {})
+    assert t[0] == "UT33C+" and "UT33C" in t and "UT363BT" not in t

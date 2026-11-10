@@ -10,6 +10,7 @@ que es lo que muestra la página comparador/index.html.
 from __future__ import annotations
 
 import json
+import re
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -56,6 +57,17 @@ def evaluar(ref: Producto, cand: Producto, img_ref, img_cand, iva: float) -> dic
     return d
 
 
+def terminos_busqueda(ref: Producto, conf: dict) -> list[str]:
+    """Qué buscar en la otra tienda: SKU, chips y modelos del nombre (y su versión sin símbolos: UT33C+ → UT33C)."""
+    base = conf.get("buscar") or [ref.sku, *ref.specs.get("chips", []), *ref.specs.get("modelos", [])[:2]]
+    out = []
+    for t in base:
+        for v in (t, re.sub(r"[^A-Za-z0-9]", "", t or "")):
+            if v and len(v) >= 3 and v.upper() not in (x.upper() for x in out):
+                out.append(v)
+    return out[:4]
+
+
 def procesar(cli: Cliente, item: dict, iva: float, previo: dict) -> dict:
     cache_fotos: dict = {}
     ref = suconel.leer(cli.html(item["suconel"]), item["suconel"])
@@ -70,8 +82,7 @@ def procesar(cli: Cliente, item: dict, iva: float, previo: dict) -> dict:
         try:
             # 1) URLs puestas a mano en productos.json  2) búsqueda por referencia, chip y palabras clave
             urls = list(conf.get("urls", []))
-            terminos = conf.get("buscar") or [ref.sku, *ref.specs.get("chips", []), *ref.specs.get("modelos", [])[:2]]
-            for t in dict.fromkeys(x for x in terminos if x):
+            for t in terminos_busqueda(ref, conf):
                 for u in mod.buscar(cli, t):
                     if u not in urls:
                         urls.append(u)
