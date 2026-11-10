@@ -1,0 +1,23 @@
+name: Despertar servidor del comparador
+
+# Render (plan gratuito) duerme el servidor tras ~15 min sin uso. Esto lo mantiene
+# despierto en horario laboral de Colombia (lun-sáb, 7 a. m. - 7 p. m.) para que
+# el botón «Comparar» responda rápido. Fuera de ese horario la primera consulta tarda ~1 min.
+# Requiere la variable del repositorio RENDER_URL (Settings → Secrets and variables → Actions → Variables).
+
+on:
+  schedule:
+    - cron: "*/10 12-23 * * 1-6"
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Llamar a /salud
+        env:
+          RENDER_URL: ${{ vars.RENDER_URL }}
+        run: |
+          if [ -z "$RENDER_URL" ]; then echo "Falta la variable RENDER_URL; no se hace nada."; exit 0; fi
+          curl -fsS --max-time 120 "$RENDER_URL/salud" || echo "El servidor no respondió (puede estar desplegando)."

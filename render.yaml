@@ -1,0 +1,19 @@
+# Blueprint de Render: crea el servidor del comparador de precios (plan gratuito).
+# Render → New → Blueprint → elegir este repositorio.
+services:
+  - type: web
+    name: comparador-suconel
+    runtime: python
+    plan: free
+    region: oregon
+    buildCommand: pip install -r comparador/servidor/requirements.txt
+    startCommand: uvicorn app:app --app-dir comparador/servidor --host 0.0.0.0 --port $PORT
+    healthCheckPath: /salud
+    autoDeploy: true
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.7
+      - key: ORIGENES_PERMITIDOS
+        value: https://andrest08m.github.io
+      - key: FIREBASE_SERVICE_ACCOUNT
+        sync: false   # Render la pide al crear el servicio: pegar el JSON de la cuenta de servicio

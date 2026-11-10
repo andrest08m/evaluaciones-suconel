@@ -53,3 +53,14 @@ a.iconbtn{text-decoration:none;display:inline-block}
   .cref,.cand{grid-template-columns:auto 1fr}
   .cprecio{grid-column:1/-1;text-align:left}
 }
+
+.cnuevo{background:var(--card);border:3px solid var(--line);border-radius:18px;padding:1rem 1.2rem;margin:1rem 0;display:flex;flex-direction:column;gap:.5rem;max-width:56rem}
+.cnuevo label{font-weight:700}
+.cfila{display:flex;gap:.6rem;flex-wrap:wrap}
+.cfila input{flex:1;min-width:16rem;font:inherit;padding:.55em .9em;border:2px solid var(--line);border-radius:12px}
+.cfila .btn{font-size:1rem;padding:.45em 1.2em}
+.cmsg{font-size:.92rem;color:var(--muted)}
+.cmsg.err{color:var(--bad)}
+.cmsg.ok{color:var(--ok)}
+.cmsg:empty{display:none}
+.corigen{font-weight:400;font-size:.8rem;color:var(--muted);margin-left:.5rem}

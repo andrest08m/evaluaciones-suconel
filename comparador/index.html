@@ -18,6 +18,14 @@
 <main class="cmain">
   <div class="cintro">
     <p>Compara cada producto de <b>Suconel</b> con otras tiendas por <b>características técnicas</b> (chip, corriente, voltajes, frecuencia, tamaño), <b>descripción</b> y <b>foto</b>.</p>
+    <form class="cnuevo" id="formComparar">
+      <label for="urlComparar">Comparar un producto de Suconel ahora</label>
+      <div class="cfila">
+        <input id="urlComparar" type="url" required placeholder="https://suconel.com/productos/…">
+        <button class="btn primary" id="btnComparar" type="submit">Comparar</button>
+      </div>
+      <div class="cmsg" id="msgComparar"></div>
+    </form>
     <div class="cfiltros">
       <input id="buscar" type="search" placeholder="Buscar producto, referencia o chip…">
       <label><input type="checkbox" id="verDistintos"> Mostrar descartados</label>

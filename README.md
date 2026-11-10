@@ -69,6 +69,8 @@ comparador/
   index.html, comparador.css, comparador.js   Página que muestra los resultados
   productos.json                              Productos a comparar (URL de Suconel + tiendas)
   data/precios.json                           Resultados (lo genera el script)
+  config.js                                   URL del servidor en Render
+  servidor/app.py                             Servidor (FastAPI) para comparar al momento
   scraper/
     comparar.py                               Script principal
     coincidencia.py                           Extracción de características y puntajes
@@ -79,4 +81,15 @@ comparador/
 - **Agregar un producto:** añadir una entrada en `comparador/productos.json` con la URL de Suconel. Opcionalmente, URLs fijas del competidor y términos de búsqueda.
 - **Actualización:** el workflow `.github/workflows/comparador-precios.yml` corre todos los días (y a mano desde *Actions → Comparador de precios → Run workflow*) y guarda `precios.json`.
 - **En local:** `pip install -r comparador/scraper/requirements.txt` y `python comparador/scraper/comparar.py`.
+- **Comparar al momento:** en la página del comparador, un usuario aprobado pega la URL de un producto de Suconel y toca «Comparar». La página llama al servidor en **Render** (`comparador/servidor/`), que compara el producto y guarda el resultado en Firestore (`precios/{id}`).
 - El script respeta `robots.txt`, espera 2 s entre peticiones y **no intenta saltarse bloqueos**: si una tienda responde 403, se muestran los últimos datos buenos marcados con su fecha.
+
+### Servidor en Render (plan gratuito)
+
+1. En [render.com](https://render.com) → **New → Blueprint** → elegir este repositorio. Render lee `render.yaml` y crea el servicio `comparador-suconel`.
+2. Cuando pida `FIREBASE_SERVICE_ACCOUNT`, pegar el contenido del JSON de Firebase → Configuración del proyecto → Cuentas de servicio → *Generar nueva clave privada*. Es secreto: no se sube al repositorio.
+3. Si la URL que asigna Render no es `https://comparador-suconel.onrender.com`, cambiarla en `comparador/config.js`.
+4. Publicar de nuevo las reglas de `firebase/firestore.rules` (se agregó la colección `precios`).
+5. Opcional: en GitHub → Settings → Secrets and variables → Actions → **Variables**, crear `RENDER_URL` con la URL del servicio. El workflow `despertar-render.yml` lo mantiene despierto en horario laboral.
+
+Pruebas del servidor: `pip install -r comparador/servidor/requirements.txt pytest` y `python -m pytest comparador/servidor`.

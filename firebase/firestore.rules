@@ -68,5 +68,11 @@ service cloud.firestore {
         allow delete: if isAdmin();
       }
     }
+
+    // Comparador de precios: lo escribe solo el servidor (Render, con Firebase Admin).
+    match /precios/{id} {
+      allow read: if isApproved();
+      allow write: if false;
+    }
   }
 }

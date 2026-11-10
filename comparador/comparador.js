@@ -1,10 +1,14 @@
-// Muestra data/precios.json (lo genera scraper/comparar.py).
+// Muestra los precios comparados:
+//  - data/precios.json: comparación diaria (GitHub Actions, scraper/comparar.py)
+//  - Firestore "precios": comparaciones hechas al momento desde esta página (servidor en Render)
+import { auth, db, onAuthStateChanged, collection, getDocs } from "../js/services/firebase.js";
+import { API_URL } from "./config.js";
 const $ = id => document.getElementById(id);
 const el = (tag, cls, txt) => { const e = document.createElement(tag); if (cls) e.className = cls; if (txt != null) e.textContent = txt; return e; };
 const cop = n => n == null ? "—" : "$ " + Math.round(n).toLocaleString("es-CO");
 const VER = { mismo: "Mismo producto", posible: "Posible", alternativa: "Alternativa", distinto: "Distinto" };
 
-let datos = null;
+let datos = { productos: [] }, diarios = [], alMomento = [], usuario = null;
 
 function foto(src, cls = "cfoto"){
   if (!src) return el("div", cls, "📦");
@@ -71,12 +75,17 @@ function render(){
     const r = p.referencia, hay = [r.nombre, r.sku, ...(r.specs.chips || [])].join(" ").toLowerCase();
     return hay.includes(q) || p.competidores.some(c => c.candidatos.some(x => (x.nombre + " " + x.sku).toLowerCase().includes(q)));
   });
-  if (!prods.length) { lista.append(el("div", "rempty", "No hay productos que coincidan.")); return; }
+  if (!prods.length) {
+    lista.append(el("div", "rempty", q ? "Ese producto todavía no está en el comparador. Pega su URL de Suconel arriba y toca «Comparar»." : "Todavía no hay productos comparados."));
+    return;
+  }
   prods.forEach(p => {
     const r = p.referencia, card = el("section", "cprod");
     const ref = el("div", "cref"), info = el("div"), h = el("h2"), a = el("a", null, r.nombre);
     a.href = r.url; a.target = "_blank"; a.rel = "noopener"; h.append(a);
-    info.append(h, el("div", "csub", "Suconel · Ref. " + r.sku), specsChips(r.specs || {}));
+    const sub = el("div", "csub", "Suconel · Ref. " + r.sku);
+    if (p.generado) sub.append(el("span", "corigen", "Comparado " + fecha(p.generado) + (p.pedido_por ? " por @" + p.pedido_por : "")));
+    info.append(h, sub, specsChips(r.specs || {}));
     ref.append(foto(r.imagen), info, precio(r));
     card.append(ref);
     p.competidores.forEach(c => {
@@ -92,17 +101,69 @@ function render(){
   });
 }
 
-async function cargar(){
+const fecha = iso => new Date(iso).toLocaleString("es-CO", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+
+// Une la comparación diaria con las hechas al momento (gana la más reciente de cada producto).
+function unir(){
+  const porId = new Map();
+  [...diarios, ...alMomento].forEach(p => {
+    const prev = porId.get(p.id);
+    if (!prev || (p.generado || "") >= (prev.generado || "")) porId.set(p.id, p);
+  });
+  const lista = [...porId.values()].sort((a, b) => (b.generado || "").localeCompare(a.generado || ""));
+  datos = { ...datos, productos: lista };
+  render();
+}
+
+async function cargarDiario(){
   try {
     const r = await fetch("data/precios.json", { cache: "no-store" });
-    datos = await r.json();
-    $("generado").textContent = "Actualizado: " + new Date(datos.generado).toLocaleString("es-CO", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
-    $("nota").textContent = datos.nota || "";
-    render();
-  } catch (e) {
-    $("lista").textContent = ""; $("lista").append(el("div", "rempty", "No se pudieron cargar los precios."));
-  }
+    const d = await r.json();
+    diarios = d.productos.map(p => ({ ...p, generado: p.generado || d.generado }));
+    $("generado").textContent = "Comparación diaria: " + fecha(d.generado);
+    $("nota").textContent = d.nota || "";
+  } catch (e) { diarios = []; }
+  unir();
 }
+
+async function cargarFirestore(){
+  if (!usuario) { alMomento = []; unir(); return; }
+  try {
+    const snap = await getDocs(collection(db, "precios"));
+    alMomento = snap.docs.map(d => d.data());
+  } catch (e) { alMomento = []; }   // usuario no aprobado o reglas sin publicar
+  unir();
+}
+
+function msg(t, cls){ const m = $("msgComparar"); m.textContent = t || ""; m.className = "cmsg" + (cls ? " " + cls : ""); }
+
+async function compararAhora(ev){
+  ev.preventDefault();
+  if (!usuario) return msg("Inicia sesión en Evaluaciones (con una cuenta aprobada) para comparar productos.", "err");
+  const url = $("urlComparar").value.trim();
+  const btn = $("btnComparar"); btn.disabled = true;
+  msg("Comparando… puede tardar hasta 1 minuto (más si el servidor estaba dormido).");
+  const t0 = Date.now(), reloj = setInterval(() => msg("Comparando… " + Math.round((Date.now() - t0) / 1000) + " s"), 1000);
+  try {
+    const token = await usuario.getIdToken();
+    const r = await fetch(API_URL + "/comparar", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": "Bearer " + token },
+      body: JSON.stringify({ url }),
+    });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(d.detail || "Error " + r.status);
+    alMomento = [d, ...alMomento.filter(p => p.id !== d.id)];
+    $("buscar").value = ""; unir();
+    msg("✓ Listo: " + d.referencia.nombre, "ok");
+    $("urlComparar").value = "";
+  } catch (e) {
+    msg(e.message === "Failed to fetch" ? "No se pudo conectar con el servidor del comparador. Intenta de nuevo en un minuto." : e.message, "err");
+  } finally { clearInterval(reloj); btn.disabled = false; }
+}
+
 $("buscar").addEventListener("input", render);
 $("verDistintos").addEventListener("change", render);
-cargar();
+$("formComparar").addEventListener("submit", compararAhora);
+onAuthStateChanged(auth, u => { usuario = u; cargarFirestore(); });
+cargarDiario();
