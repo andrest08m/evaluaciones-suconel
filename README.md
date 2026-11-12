@@ -1,6 +1,6 @@
 # Evaluaciones Suconel
 
-Evaluaciones de selección múltiple para la formación de asesores de Suconel: 12 evaluaciones de 15 preguntas cada una, pensadas para proyectar en pantalla grande.
+Evaluaciones de selección múltiple para la formación de asesores de Suconel: 13 evaluaciones de 15 preguntas cada una, pensadas para proyectar en pantalla grande.
 
 Sitio: https://andrest08m.github.io/evaluaciones-suconel/
 
@@ -43,7 +43,7 @@ js/
     firebase-config.js      Credenciales web de Firebase y dominio interno de usuarios
     constants.js            Letras de opciones y puntaje por pregunta
   data/
-    evaluaciones.js         Catálogo de las 12 evaluaciones (título, ícono, colores)
+    evaluaciones.js         Catálogo de las 13 evaluaciones (título, ícono, colores)
     preguntas.js            Banco de preguntas
   services/firebase.js      Inicialización de Firebase y funciones del SDK
   utils/                    Utilidades (DOM, formato, mensajes de error)
@@ -58,7 +58,7 @@ Para probarlo en local hay que servirlo por HTTP (los módulos ES no cargan desd
 
 Botón **💲 Comparador de precios** al lado del nombre en la pantalla de inicio (`comparador/`).
 
-Compara cada producto de Suconel con otras tiendas (por ahora **Didácticas Electrónicas**) y clasifica cada resultado como *mismo producto*, *posible*, *alternativa* o *distinto* según:
+Compara cada producto de Suconel (la tienda de referencia) con **Didácticas Electrónicas**, **Electronilab** y **Mercado Libre** y clasifica cada resultado como *mismo producto*, *posible*, *alternativa* o *distinto* según:
 
 - **Características** (50 %): chip, corriente, rangos de entrada/salida, frecuencia, potencia y tamaño. Un chip o una corriente distinta marca el resultado como *alternativa* aunque el nombre se parezca.
 - **Descripción** (30 %): similitud de nombre y descripción (rapidfuzz).
@@ -71,14 +71,20 @@ comparador/
   data/precios.json                           Resultados (lo genera el script)
   config.js                                   URL del servidor en Render
   servidor/app.py                             Servidor (FastAPI) para comparar al momento
+  data/historial.csv                          Historial de precios por fecha (lo alimenta el workflow)
   scraper/
     comparar.py                               Script principal
+    catalogo.py                               Carga categorías de suconel.com en productos.json
+    historial.py                              Historial de precios (CSV y Firestore)
+    exportar.py                               Informe Excel: resumen, comparación e historial
     coincidencia.py                           Extracción de características y puntajes
     tiendas/                                  Un conector por tienda (suconel, didacticas)
     tests/                                    Pruebas con páginas de ejemplo
 ```
 
 - **Agregar un producto:** añadir una entrada en `comparador/productos.json` con la URL de Suconel. Opcionalmente, URLs fijas del competidor y términos de búsqueda.
+- **Cargar una categoría completa** (estudio de mercado): `python comparador/scraper/catalogo.py --categorias modulos,fuentes-de-alimentacion --maximo 60 --competidores didacticas,electronilab,mercadolibre`, o desde GitHub → Actions → *Comparador de precios* → *Run workflow* escribiendo las categorías. Después, la comparación diaria recorre todo `productos.json`.
+- **Historial y exportación:** cada corrida agrega filas a `comparador/data/historial.csv` (una por producto, tienda y fecha) y las comparaciones al momento se guardan en Firestore en `precios/{id}/historial`. La página tiene un panel **Resumen** por tienda y el botón **⬇ Descargar CSV**; para un informe en Excel con resumen, comparación e historial: `python comparador/scraper/exportar.py --salida comparador/data/informe.xlsx`.
 - **Actualización:** el workflow `.github/workflows/comparador-precios.yml` corre todos los días (y a mano desde *Actions → Comparador de precios → Run workflow*) y guarda `precios.json`.
 - **En local:** `pip install -r comparador/scraper/requirements.txt` y `python comparador/scraper/comparar.py`.
 - **Comparar al momento:** en la página del comparador, un usuario aprobado pega la URL de un producto de Suconel y toca «Comparar». La página llama al servidor en **Render** (`comparador/servidor/`), que compara el producto y guarda el resultado en Firestore (`precios/{id}`).

@@ -155,7 +155,7 @@ def puntaje_specs(a: dict, b: dict) -> tuple[float | None, list[str], bool]:
     if a.get("corriente_a") and b.get("corriente_a"):
         r = _cerca(a["corriente_a"], b["corriente_a"])
         partes.append(r)
-        if r < 0.7:
+        if r < 0.6:          # 2 A vs 3 A (0.67) es tolerable; 2 A vs 5 A (0.4) no
             conflicto = True
             motivos.append(f"corriente distinta: {a['corriente_a']:g} A vs {b['corriente_a']:g} A")
         else:

@@ -74,3 +74,17 @@ a.iconbtn{text-decoration:none;display:inline-block}
 .cmas[open] summary{border-bottom:1px dashed var(--line)}
 .dif.mas::before{content:"✓ "}
 #lista{display:flex;flex-direction:column;gap:1.2rem}
+
+.cresumen-caja{display:flex;flex-wrap:wrap;gap:1rem;align-items:flex-start;margin-top:1rem}
+.cresumen{display:flex;flex-wrap:wrap;gap:.8rem;flex:1}
+.cresumen:empty{display:none}
+.cres{background:var(--card);border:3px solid var(--line);border-radius:18px;padding:.8rem 1.1rem;min-width:15rem;display:flex;flex-direction:column;gap:.25rem}
+.cres h3{font-size:1.05rem}
+.cres div{color:var(--muted);font-size:.9rem}
+.cres b{color:var(--text,inherit)}
+.cres .cdif{font-weight:700;font-size:1.1rem}
+.cres .cdif.mas{color:var(--ok)}
+.cres .cdif.menos{color:var(--bad)}
+.mini.descargar{font:inherit;font-size:.9rem;padding:.5em 1em;border-radius:12px;border:2px solid var(--line);background:var(--card);cursor:pointer;font-weight:600}
+.mini.descargar:hover{border-color:var(--accent)}
+.mini.descargar:disabled{opacity:.5;cursor:not-allowed}

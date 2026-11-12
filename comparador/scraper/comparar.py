@@ -17,14 +17,15 @@ from pathlib import Path
 from urllib.parse import urlparse
 
 from coincidencia import coincidencia_fuerte, combinar, diferencias_variante, misma_referencia, extraer_specs, puntaje_descripcion, puntaje_foto, puntaje_specs
-from tiendas import didacticas, suconel
+from historial import registrar
+from tiendas import didacticas, electronilab, mercadolibre, suconel
 from tiendas.base import Bloqueado, Cliente, LimiteDiario, Producto
 
 RAIZ = Path(__file__).resolve().parents[1]
 CATALOGO = RAIZ / "productos.json"
 SALIDA = RAIZ / "data" / "precios.json"
 
-COMPETIDORES = {"didacticas": didacticas}
+COMPETIDORES = {"didacticas": didacticas, "electronilab": electronilab, "mercadolibre": mercadolibre}
 
 
 def a_dict(p: Producto, iva: float) -> dict:
@@ -120,7 +121,7 @@ def procesar(cli: Cliente, item: dict, iva: float, previo: dict) -> dict:
             urls += priorizar(ref, encontrados)
             for u in urls[: conf.get("maximo", 6)]:
                 try:
-                    c = mod.leer(cli.html(u), u)
+                    c = mod.leer_url(cli, u) if hasattr(mod, "leer_url") else mod.leer(cli.html(u), u)
                 except Bloqueado:
                     raise
                 except Exception as e:
@@ -178,6 +179,8 @@ def main() -> int:
             ant = next((p for p in previo.get("productos", []) if p.get("id") == item["id"]), None)
             if ant:
                 productos.append(ant)
+    ahora = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    registrar(productos, SALIDA.parent / "historial.csv", ahora)
     SALIDA.parent.mkdir(parents=True, exist_ok=True)
     SALIDA.write_text(json.dumps({"generado": datetime.now(timezone.utc).isoformat(timespec="seconds"),
                                   "iva": iva, "productos": productos}, ensure_ascii=False, indent=2) + "\n",

@@ -12,4 +12,5 @@ export const META = [
   {k:"marcas",t:"Marcas y posicionamiento",d:"Qué marca ofrecer según uso y presupuesto: Fluke, Uni-T, Hioki, Weller, KNIPEX, Autonics…",i:"🏷️",c:"#9333ea",b:"#f3e8ff",n:true},
   {k:"casos2",t:"Casos: automatización, CCTV y solar",d:"Visitas a plantas, bodegas y fincas: qué proponer y cómo no sobrevender.",i:"🏭",c:"#b45309",b:"#fef3c7",n:true},
   {k:"seguridad",t:"Seguridad eléctrica y normativa",d:"RETIE, categorías CAT, LOTO, EPP, IP/IK, DPS, diferenciales y calibración.",i:"🦺",c:"#dc2626",b:"#fee2e2",n:true},
+  {k:"precios",t:"Precios, cotización y competencia",d:"IVA, descuentos por volumen, cotizaciones, garantía y qué responder cuando el cliente dice que en otra tienda está más barato.",i:"💲",c:"#4d7c0f",b:"#ecfccb",n:true},
 ];

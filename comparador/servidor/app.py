@@ -29,12 +29,13 @@ from pydantic import BaseModel
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scraper"))
 from comparar import procesar  # noqa: E402
+from historial import filas_producto  # noqa: E402
 from tiendas.base import Cliente  # noqa: E402
 
 RE_SUCONEL = re.compile(r"^https://(www\.)?suconel\.com/productos/[a-z0-9\-]+/?$")
 LIMITE_POR_HORA = 20          # comparaciones por usuario por hora
 IVA = 0.19
-COMPETIDORES = {"didacticas": {"maximo": 5}}
+COMPETIDORES = {"didacticas": {"maximo": 5}, "electronilab": {"maximo": 5}, "mercadolibre": {"maximo": 5}}
 
 app = FastAPI(title="Comparador de precios Suconel")
 app.add_middleware(
@@ -126,7 +127,17 @@ async def comparar(pedido: Pedido, authorization: str | None = Header(None)):
 
     res["generado"] = datetime.now(timezone.utc).isoformat(timespec="seconds")
     res["pedido_por"] = u.get("username", u["uid"])
-    db().collection("precios").document(pid).set(res)
+    base = db()
+    base.collection("precios").document(pid).set(res)
+    # Historial para el estudio de mercado: una fila por tienda y candidato, en precios/{id}/historial.
+    try:
+        lote = base.batch()
+        for n, fila in enumerate(filas_producto(res, res["generado"])):
+            lote.set(base.collection("precios").document(pid).collection("historial")
+                     .document(f"{res['generado'][:19].replace(':', '-')}-{n}"), fila)
+        lote.commit()
+    except Exception as e:                     # el historial no debe impedir devolver el resultado
+        print(f"! historial de {pid}: {e}")
     return res
 
 

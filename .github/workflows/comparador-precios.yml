@@ -4,6 +4,11 @@ on:
   schedule:
     - cron: "17 11 * * *"   # todos los días a las 6:17 a. m. (hora de Colombia)
   workflow_dispatch:         # botón "Run workflow" para ejecutarlo a mano
+    inputs:
+      categorias:
+        description: "Categorías de suconel.com a cargar en productos.json (slugs separados por coma, p. ej. modulos,fuentes-de-alimentacion). Vacío = no cargar"
+        required: false
+        type: string
 
 permissions:
   contents: write
@@ -31,6 +36,10 @@ jobs:
       - name: Pruebas
         run: python -m pytest -q comparador/scraper/tests
 
+      - name: Cargar catálogo
+        if: github.event.inputs.categorias != ''
+        run: python comparador/scraper/catalogo.py --categorias "${{ github.event.inputs.categorias }}" --competidores didacticas,electronilab,mercadolibre
+
       - name: Consultar tiendas y comparar
         env:
           FIRECRAWL_API_KEY: ${{ secrets.FIRECRAWL_API_KEY }}   # opcional
@@ -39,11 +48,11 @@ jobs:
 
       - name: Guardar resultados
         run: |
-          if git diff --quiet -- comparador/data/precios.json; then
+          if git diff --quiet -- comparador/data/; then
             echo "Sin cambios"; exit 0
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898699+github-actions[bot]@users.noreply.github.com"
-          git add comparador/data/precios.json
+          git add comparador/data/precios.json comparador/data/historial.csv
           git commit -m "Comparador: actualizar precios"
           git push

@@ -75,14 +75,87 @@ function candidato(c){
   return fila;
 }
 
-function render(){
-  const lista = $("lista"); lista.textContent = "";
-  const q = $("buscar").value.trim().toLowerCase(), verDist = $("verDistintos").checked;
-  const prods = datos.productos.filter(p => {
+// Mejor candidato de una tienda: el primero que no sea «distinto» (ya vienen ordenados).
+const mejorDe = c => c.candidatos.find(x => x.veredicto !== "distinto");
+const TOL = 2;   // ±2 % se considera «igual»
+
+function productosVisibles(){
+  const q = $("buscar").value.trim().toLowerCase();
+  return datos.productos.filter(p => {
     if (!q) return true;
-    const r = p.referencia, hay = [r.nombre, r.sku, ...(r.specs.chips || [])].join(" ").toLowerCase();
+    const r = p.referencia, hay = [r.nombre, r.sku, ...((r.specs || {}).chips || [])].join(" ").toLowerCase();
     return hay.includes(q) || p.competidores.some(c => c.candidatos.some(x => (x.nombre + " " + x.sku).toLowerCase().includes(q)));
   });
+}
+
+// Resumen por tienda a partir de los productos visibles. diferencia_pct > 0: Suconel más barato.
+function resumen(prods){
+  const por = new Map();
+  prods.forEach(p => p.competidores.forEach(c => {
+    const r = por.get(c.tienda) || { tienda: c.tienda, comparados: 0, coinciden: 0, difs: [], barato: 0 };
+    por.set(c.tienda, r);
+    r.comparados++;
+    const m = mejorDe(c);
+    if (!m || m.veredicto === "alternativa") return;
+    r.coinciden++;
+    if (m.diferencia_pct == null) return;
+    r.difs.push(m.diferencia_pct);
+    if (m.diferencia_pct > TOL) r.barato++;
+  }));
+  return [...por.values()];
+}
+
+function pintarResumen(prods){
+  const box = $("resumen"); box.textContent = "";
+  resumen(prods).forEach(r => {
+    const card = el("div", "cres"), prom = r.difs.length ? r.difs.reduce((a, b) => a + b, 0) / r.difs.length : null;
+    card.append(el("h3", null, r.tienda));
+    const n = (txt, num, resto) => { const d = el("div"); d.append(el("b", null, num), " " + resto); return d; };
+    card.append(n(0, r.comparados, r.comparados === 1 ? "producto comparado" : "productos comparados"),
+                n(0, r.coinciden, "con coincidencia (mismo/posible)"));
+    const dif = el("div", "cdif" + (prom == null ? "" : prom > 0 ? " mas" : prom < 0 ? " menos" : ""),
+      prom == null ? "Diferencia promedio: —" : "Diferencia promedio: " + (prom > 0 ? "+" : "") + (Math.round(prom * 10) / 10).toLocaleString("es-CO") + " %");
+    dif.title = "Positivo: Suconel más barato. Negativo: Suconel más caro.";
+    card.append(dif, el("div", null, "Suconel más barato en " + r.barato + " de " + r.difs.length));
+    box.append(card);
+  });
+  $("btnCsv").disabled = !prods.some(p => p.competidores.some(mejorDe));
+}
+
+const COLS_CSV = ["fecha", "id", "categoria", "sku_suconel", "nombre_suconel", "precio_suconel_con_iva", "tienda", "veredicto",
+  "sku_competidor", "nombre_competidor", "precio_competidor", "precio_competidor_con_iva", "iva_incluido", "diferencia_pct", "puntaje_total", "url_competidor"];
+
+function filasCsv(prods){
+  const filas = [];
+  prods.forEach(p => p.competidores.forEach(c => {
+    const m = mejorDe(c); if (!m) return;
+    const r = p.referencia;
+    filas.push([(p.generado || "").slice(0, 10), p.id, p.categoria || "", r.sku, r.nombre, r.precio_con_iva, c.tienda, m.veredicto,
+      m.sku, m.nombre, m.precio, m.precio_con_iva, m.iva_incluido, m.diferencia_pct, m.puntajes && m.puntajes.total, m.url]);
+  }));
+  return filas;
+}
+
+const celdaCsv = v => {
+  const t = v == null ? "" : String(v);
+  return /[;"\n\r]/.test(t) ? '"' + t.replace(/"/g, '""') + '"' : t;
+};
+
+function descargarCsv(){
+  const filas = filasCsv(productosVisibles());
+  if (!filas.length) return;
+  const txt = "\ufeff" + [COLS_CSV, ...filas].map(f => f.map(celdaCsv).join(";")).join("\r\n") + "\r\n";
+  const url = URL.createObjectURL(new Blob([txt], { type: "text/csv;charset=utf-8" }));
+  const a = el("a"); a.href = url; a.download = "comparador-suconel-" + new Date().toISOString().slice(0, 10) + ".csv";
+  document.body.append(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+function render(){
+  const lista = $("lista"); lista.textContent = "";
+  const q = $("buscar").value.trim(), verDist = $("verDistintos").checked;
+  const prods = productosVisibles();
+  pintarResumen(prods);
   if (!prods.length) {
     lista.append(el("div", "rempty", q ? "Ese producto todavía no está en el comparador. Pega su URL de Suconel arriba y toca «Comparar»." : "Todavía no hay productos comparados."));
     return;
@@ -199,6 +272,7 @@ async function compararAhora(ev){
 }
 
 $("buscar").addEventListener("input", render);
+$("btnCsv").addEventListener("click", descargarCsv);
 $("verDistintos").addEventListener("change", render);
 $("formComparar").addEventListener("submit", compararAhora);
 onAuthStateChanged(auth, u => { usuario = u; cargarFirestore(); });

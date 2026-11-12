@@ -11,6 +11,18 @@
         ],
         "iva_incluido": null,
         "maximo": 8
+      },
+      "electronilab": {
+        "buscar": [
+          "LM2596"
+        ],
+        "maximo": 5
+      },
+      "mercadolibre": {
+        "buscar": [
+          "modulo LM2596"
+        ],
+        "maximo": 5
       }
     }
   }

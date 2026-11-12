@@ -44,7 +44,23 @@ class Doc:
 class BDFalsa:
     def __init__(self):
         self.guardado = {}
+        self.historial = {}
         self.users = {"u-ok": {"username": "laura", "estado": "aprobado"}, "u-pend": {"estado": "pendiente"}}
+
+    def batch(self):
+        bd = self
+
+        class Lote:
+            def __init__(self):
+                self.ops = []
+
+            def set(self, ref, data):
+                self.ops.append((ref, data))
+
+            def commit(self):
+                for ref, data in self.ops:
+                    bd.historial.setdefault(ref.padre, {})[ref.id] = data
+        return Lote()
 
     def collection(self, nombre):
         bd = self
@@ -57,6 +73,14 @@ class BDFalsa:
 
                     def set(self_, data):
                         bd.guardado[i] = data
+
+                    def collection(self_, sub):
+                        class Sub:
+                            def document(self__, hid):
+                                class Ref:
+                                    padre, id = i, hid
+                                return Ref()
+                        return Sub()
                 return D()
         return Col()
 
@@ -103,6 +127,10 @@ def test_compara_y_guarda(cli):
     assert len(cands) == 1 and cands[0]["veredicto"] == "alternativa"
     assert d["pedido_por"] == "laura"
     assert cli.bd.guardado[d["id"]]["referencia"]["precio"] == 3135
+    hist = cli.bd.historial[d["id"]]
+    # una fila por tienda: Didácticas con candidato; Electronilab y Mercado Libre «sin_resultado» (sin red)
+    assert sorted(f["tienda"] for f in hist.values()) == ["Didácticas Electrónicas", "Electronilab", "Mercado Libre"]
+    assert {f["veredicto"] for f in hist.values()} == {"alternativa", "sin_resultado"}
 
 
 def test_cors(cli):

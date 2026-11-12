@@ -73,6 +73,11 @@ service cloud.firestore {
     match /precios/{id} {
       allow read: if isApproved();
       allow write: if false;
+
+      match /historial/{fila} {
+        allow read: if isApproved();
+        allow write: if false;
+      }
     }
   }
 }
